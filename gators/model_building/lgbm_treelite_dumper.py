@@ -18,11 +18,11 @@ class LGBMTreeliteDumper:
     >>> y_train = np.array([0, 1, 1, 0])
     >>> model = LGBMClassifier(max_depth=1, n_estimators=1).fit(X_train, y_train)
     >>> LGBMTreeliteDumper.dump(
-    ...     model=model,
-    ...     toolchain='gcc',
-    ...     parallel_comp=1,
-    ...     model_path='.',
-    ...     model_name='dummy')
+    ... model=model,
+    ... toolchain='gcc',
+    ... parallel_comp=1,
+    ... model_path='.',
+    ... model_name='dummy')
     [00:00:00] ../src/compiler/ast/split.cc:31: Parallel compilation enabled; member trees will be divided into 1 translation units.
     [00:00:01] ../src/compiler/ast_native.cc:45: Using ASTNativeCompiler
     [00:00:01] ../src/compiler/ast/split.cc:31: Parallel compilation enabled; member trees will be divided into 1 translation units.

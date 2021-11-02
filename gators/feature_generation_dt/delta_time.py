@@ -1,14 +1,12 @@
 # Licence Apache-2.0
-from typing import List, Union
+from typing import List
 
-import databricks.koalas as ks
 import numpy as np
-import pandas as pd
-
-import feature_gen_dt
 
 from ..transformers import Transformer
 from ..util import util
+
+from gators import DataFrame, Series
 
 
 class DeltaTime(Transformer):
@@ -16,50 +14,57 @@ class DeltaTime(Transformer):
 
     Parameters
     ----------
-    columns : List[str]
+    theta_vec : List[float]
         List of columns.
 
     Examples
     ---------
-    * fit & transform with `pandas`
+    Imports and initialization:
 
-    >>> import pandas as pd
     >>> from gators.feature_generation_dt import DeltaTime
-    >>> X = pd.DataFrame({
-    ... 'A': ['2020-01-01T23', '2020-01-15T18', pd.NaT],
-    ... 'B': [0, 1, 0],
-    ... 'C': ['2020-01-02T05', '2020-01-15T23', pd.NaT]})
     >>> obj = DeltaTime(columns_a=['C'], columns_b=['A'])
-    >>> obj.fit_transform(X)
-                        A  B                   C  C__A__Deltatime[s]
-    0 2020-01-01 23:00:00  0 2020-01-02 05:00:00             21600.0
-    1 2020-01-15 18:00:00  1 2020-01-15 23:00:00             18000.0
-    2                 NaT  0                 NaT                 NaN
 
-    * fit & transform with `koalas`
+    The `fit`, `transform`, and `fit_transform` methods accept:
+
+    * `dask` dataframes:
+
+    >>> import dask.dataframe as dd
+    >>> import pandas as pd
+    >>> X = dd.from_pandas(
+    ... pd.DataFrame({
+    ... 'A': ['2020-01-01T23', '2020-01-15T18',  None],
+    ... 'B': [0, 1, 0],
+    ... 'C': ['2020-01-02T05', '2020-01-15T23',  None]}), npartitions=1)
+
+    * `koalas` dataframes:
 
     >>> import databricks.koalas as ks
-    >>> from gators.feature_generation_dt import DeltaTime
     >>> X = ks.DataFrame({
-    ... 'A': ['2020-01-01T23', '2020-01-15T18', pd.NaT],
+    ... 'A': ['2020-01-01T23', '2020-01-15T18',  None],
     ... 'B': [0, 1, 0],
-    ... 'C': ['2020-01-02T05', '2020-01-15T23', pd.NaT]})
-    >>> obj = DeltaTime(columns_a=['C'], columns_b=['A'])
+    ... 'C': ['2020-01-02T05', '2020-01-15T23',  None]})
+
+    * and `pandas` dataframes:
+
+    >>> import pandas as pd
+    >>> X = pd.DataFrame({
+    ... 'A': ['2020-01-01T23', '2020-01-15T18',  None],
+    ... 'B': [0, 1, 0],
+    ... 'C': ['2020-01-02T05', '2020-01-15T23',  None]})
+
+    The result is a transformed dataframe belonging to the same dataframe library.
+
     >>> obj.fit_transform(X)
                         A  B                   C  C__A__Deltatime[s]
     0 2020-01-01 23:00:00  0 2020-01-02 05:00:00             21600.0
     1 2020-01-15 18:00:00  1 2020-01-15 23:00:00             18000.0
     2                 NaT  0                 NaT                 NaN
 
-    * fit with `pandas` & transform with `NumPy`
 
-    >>> import pandas as pd
-    >>> from gators.feature_generation_dt import DeltaTime
     >>> X = pd.DataFrame({
-    ... 'A': ['2020-01-01T23', '2020-01-15T18', pd.NaT],
+    ... 'A': ['2020-01-01T23', '2020-01-15T18',  None],
     ... 'B': [0, 1, 0],
-    ... 'C': ['2020-01-02T05', '2020-01-15T23', pd.NaT]})
-    >>> obj = DeltaTime(columns_a=['C'], columns_b=['A'])
+    ... 'C': ['2020-01-02T05', '2020-01-15T23',  None]})
     >>> _ = obj.fit(X)
     >>> obj.transform_numpy(X.to_numpy())
     array([[Timestamp('2020-01-01 23:00:00'), 0,
@@ -67,26 +72,6 @@ class DeltaTime(Transformer):
            [Timestamp('2020-01-15 18:00:00'), 1,
             Timestamp('2020-01-15 23:00:00'), 18000.0],
            [NaT, 0, NaT, nan]], dtype=object)
-
-    * fit with `koalas` & transform with `NumPy`
-
-    >>> import databricks.koalas as ks
-    >>> from gators.feature_generation_dt import DeltaTime
-    >>> X = ks.DataFrame({
-    ... 'A': ['2020-01-01T23', '2020-01-15T18', pd.NaT],
-    ... 'B': [0, 1, 0],
-    ... 'C': ['2020-01-02T05', '2020-01-15T23', pd.NaT]})
-    >>> obj = DeltaTime(columns_a=['C'], columns_b=['A'])
-    >>> _ = obj.fit(X)
-    >>> obj.transform_numpy(X.to_numpy())
-    array([[Timestamp('2020-01-01 23:00:00'), 0,
-            Timestamp('2020-01-02 05:00:00'), 21600.0],
-           [Timestamp('2020-01-15 18:00:00'), 1,
-            Timestamp('2020-01-15 23:00:00'), 18000.0],
-           [NaT, 0, NaT, nan]], dtype=object)
-
-
-
     """
 
     def __init__(self, columns_a: List[str], columns_b: List[str]):
@@ -109,33 +94,26 @@ class DeltaTime(Transformer):
             f"{c_a}__{c_b}__Deltatime[{self.unit}]"
             for c_a, c_b in zip(columns_a, columns_b)
         ]
-        self.column_mapping = {
-            name: [c_a, c_b]
-            for name, c_a, c_b in zip(self.column_names, columns_a, columns_b)
-        }
 
-    def fit(
-        self,
-        X: Union[pd.DataFrame, ks.DataFrame],
-        y: Union[pd.Series, ks.Series] = None,
-    ) -> "DeltaTime":
+    def fit(self, X: DataFrame, y: Series = None) -> "DeltaTime":
         """Fit the transformer on the dataframe `X`.
 
         Parameters
         ----------
         X : pd.DataFrame
             Input dataframe.
-        y : Union[pd.Series, ks.Series], default to None.
+        y : Series, default to None.
             Target values.
 
         Returns
         -------
-        DeltaTime
+        self : DeltaTime
             Instance of itself.
         """
         self.check_dataframe(X)
         columns = list(set(self.columns_a + self.columns_b))
-        X_datetime_dtype = X.iloc[:5000][columns].dtypes
+        columns = [c for c in X.columns if c in columns]
+        X_datetime_dtype = X.dtypes
         for column in columns:
             if not np.issubdtype(X_datetime_dtype[column], np.datetime64):
                 raise TypeError(
@@ -144,46 +122,39 @@ class DeltaTime(Transformer):
                     Use `ConvertColumnDatatype` to convert the dtype.
                 """
                 )
+        self.idx_columns = np.arange(len(columns))
         self.idx_columns_a = util.get_idx_columns(
-            columns=X.columns,
+            columns=columns,
             selected_columns=self.columns_a,
         )
         self.idx_columns_b = util.get_idx_columns(
-            columns=X.columns,
+            columns=columns,
             selected_columns=self.columns_b,
         )
         return self
 
-    def transform(
-        self, X: Union[pd.DataFrame, ks.DataFrame]
-    ) -> Union[pd.DataFrame, ks.DataFrame]:
+    def transform(self, X: DataFrame) -> DataFrame:
         """Transform the dataframe `X`.
 
         Parameters
         ----------
-        X : Union[pd.DataFrame, ks.DataFrame].
+        X : DataFrame.
             Input dataframe.
 
         Returns
         -------
-        Union[pd.DataFrame, ks.DataFrame]
+        X : DataFrame
             Transformed dataframe.
         """
         self.check_dataframe(X)
-        if isinstance(X, pd.DataFrame):
-            for name, c_a, c_b in zip(
-                self.column_names, self.columns_a, self.columns_b
-            ):
-                X.loc[:, name] = (X[c_a] - X[c_b]).astype(self.deltatime_dtype)
-            return X
-        for name, c_a, c_b in zip(self.column_names, self.columns_a, self.columns_b):
-            X = X.assign(dummy=(X[c_a].astype(float) - X[c_b].astype(float))).rename(
-                columns={"dummy": name}
-            )
+        X = util.get_function(X).delta_time(
+            X, self.column_names, self.columns_a, self.columns_b, self.deltatime_dtype
+        )
+        self.columns_ = list(X.columns)
         return X
 
     def transform_numpy(self, X: np.ndarray) -> np.ndarray:
-        """Transform the array X.
+        """Transform the array `X`.
 
         Parameters
         ----------
@@ -192,8 +163,12 @@ class DeltaTime(Transformer):
 
         Returns
         -------
-        np.ndarray:
+        X : np.ndarray:
             Array with the datetime features added.
         """
         self.check_array(X)
-        return feature_gen_dt.deltatime(X, self.idx_columns_a, self.idx_columns_b)
+        X_a = X[:, self.idx_columns_a].astype(np.datetime64).astype(np.float64)
+        X_b = X[:, self.idx_columns_b].astype(np.datetime64).astype(np.float64)
+        X_new = X_a - X_b
+        X_new[(X_a < 0) | (X_b < 0)] = np.nan
+        return np.concatenate([X, X_new], axis=1)

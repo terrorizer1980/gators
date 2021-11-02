@@ -1,10 +1,8 @@
 # License: Apache-2.0
 import os
 
-import numpy as np
 import treelite
 import xgboost
-from xgboost.sklearn import XGBClassifier
 
 
 class XGBTreeliteDumper:
@@ -20,11 +18,11 @@ class XGBTreeliteDumper:
     >>> dtrain = xgb.DMatrix(X_train, label=y_train)
     >>> model = xgb.train({'max_depth': 1}, dtrain, num_boost_round=1)
     >>> XGBTreeliteDumper.dump(
-    ...     model=model,
-    ...     toolchain='gcc',
-    ...     parallel_comp=1,
-    ...     model_path='.',
-    ...     model_name='dummy')
+    ... model=model,
+    ... toolchain='gcc',
+    ... parallel_comp=1,
+    ... model_path='.',
+    ... model_name='dummy')
     [00:00:00] ../src/compiler/ast/split.cc:31: Parallel compilation enabled; member trees will be divided into 1 translation units.
     [00:00:01] ../src/compiler/ast_native.cc:45: Using ASTNativeCompiler
     [00:00:01] ../src/compiler/ast/split.cc:31: Parallel compilation enabled; member trees will be divided into 1 translation units.
